@@ -1,3 +1,4 @@
+import os
 import time
 import requests
 import streamlit as st
@@ -6,6 +7,55 @@ import streamlit as st
 OPENROUTER_URL = (
     "https://openrouter.ai/api/v1/chat/completions"
 )
+
+DEFAULT_HTTP_REFERER = (
+    "https://fraudguard-ai-demo.streamlit.app"
+)
+
+DEFAULT_APP_TITLE = "FraudGuard AI"
+
+
+def _get_api_key():
+    """
+    Retrieve the OpenRouter API key.
+
+    Priority:
+    1. Environment variable - used by cloud/backend deployments
+    2. Streamlit secrets - used by Streamlit Cloud/local Streamlit
+    """
+
+    api_key = os.getenv("OPENROUTER_API_KEY")
+
+    if api_key:
+        return api_key
+
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"]
+    except Exception:
+        api_key = None
+
+    if not api_key:
+        raise RuntimeError(
+            "OPENROUTER_API_KEY is not configured. "
+            "Set it as an environment variable or "
+            "in Streamlit secrets."
+        )
+
+    return api_key
+
+
+def _get_http_referer():
+    """
+    Get the application URL used for OpenRouter attribution.
+
+    Allows the backend deployment to override the value through
+    OPENROUTER_HTTP_REFERER.
+    """
+
+    return os.getenv(
+        "OPENROUTER_HTTP_REFERER",
+        DEFAULT_HTTP_REFERER
+    )
 
 
 def call_openrouter(
@@ -21,15 +71,23 @@ def call_openrouter(
 
     Provider fallback is enabled because free OpenRouter
     endpoints can temporarily become unavailable.
+
+    Supports:
+    - Environment-based API keys for cloud deployments
+    - Streamlit secrets for Streamlit deployments
+    - 429 retry handling
+    - Request timeout handling
+    - Network error handling
+    - Provider fallback
     """
 
-    api_key = st.secrets["OPENROUTER_API_KEY"]
+    api_key = _get_api_key()
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:8501",
-        "X-Title": "FraudGuard AI"
+        "HTTP-Referer": _get_http_referer(),
+        "X-Title": DEFAULT_APP_TITLE
     }
 
     payload = {
@@ -68,9 +126,18 @@ def call_openrouter(
                 timeout=120
             )
 
+            # -------------------------------------------------
+            # SUCCESS
+            # -------------------------------------------------
             if response.status_code == 200:
 
-                data = response.json()
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise RuntimeError(
+                        "OpenRouter returned invalid JSON "
+                        f"for model '{model}': {exc}"
+                    ) from exc
 
                 if "choices" not in data:
                     raise RuntimeError(
@@ -99,6 +166,9 @@ def call_openrouter(
 
                 return content
 
+            # -------------------------------------------------
+            # RATE LIMIT
+            # -------------------------------------------------
             if response.status_code == 429:
 
                 try:
@@ -107,51 +177,90 @@ def call_openrouter(
                     error_body = response.text
 
                 last_error = (
-                    f"OpenRouter API error | "
-                    f"HTTP 429 | "
+                    "OpenRouter API error | "
+                    "HTTP 429 | "
                     f"Model: {model} | "
                     f"Response: {error_body}"
                 )
 
                 if attempt < max_retries:
 
-                    wait_time = 3 * (2 ** attempt)
+                    retry_after = response.headers.get(
+                        "retry-after"
+                    )
+
+                    if retry_after:
+                        try:
+                            wait_time = float(retry_after)
+                        except (ValueError, TypeError):
+                            wait_time = 3 * (2 ** attempt)
+                    else:
+                        wait_time = 3 * (2 ** attempt)
+
+                    # Cap retry delay to avoid excessively long waits.
+                    wait_time = min(wait_time, 60)
+
+                    print(
+                        f"[OpenRouter] Rate limit reached "
+                        f"for {model}. "
+                        f"Retrying in {wait_time:.1f}s "
+                        f"(attempt {attempt + 1}/"
+                        f"{max_retries})"
+                    )
 
                     time.sleep(wait_time)
-
                     continue
 
                 raise RuntimeError(last_error)
 
+            # -------------------------------------------------
+            # OTHER API ERRORS
+            # -------------------------------------------------
             try:
                 error_body = response.json()
             except Exception:
                 error_body = response.text
 
             raise RuntimeError(
-                f"OpenRouter API error | "
+                "OpenRouter API error | "
                 f"HTTP {response.status_code} | "
                 f"Model: {model} | "
                 f"Response: {error_body}"
             )
 
-        except requests.exceptions.Timeout:
+        # -----------------------------------------------------
+        # TIMEOUT
+        # -----------------------------------------------------
+        except requests.exceptions.Timeout as exc:
 
             last_error = (
                 f"OpenRouter request timed out "
-                f"for model '{model}'."
+                f"for model '{model}': {exc}"
             )
 
             if attempt < max_retries:
 
-                wait_time = 3 * (2 ** attempt)
+                wait_time = min(
+                    3 * (2 ** attempt),
+                    60
+                )
+
+                print(
+                    f"[OpenRouter] Request timeout "
+                    f"for {model}. "
+                    f"Retrying in {wait_time}s "
+                    f"(attempt {attempt + 1}/"
+                    f"{max_retries})"
+                )
 
                 time.sleep(wait_time)
-
                 continue
 
-            raise RuntimeError(last_error)
+            raise RuntimeError(last_error) from exc
 
+        # -----------------------------------------------------
+        # NETWORK ERROR
+        # -----------------------------------------------------
         except requests.exceptions.RequestException as exc:
 
             last_error = (
@@ -161,13 +270,23 @@ def call_openrouter(
 
             if attempt < max_retries:
 
-                wait_time = 3 * (2 ** attempt)
+                wait_time = min(
+                    3 * (2 ** attempt),
+                    60
+                )
+
+                print(
+                    f"[OpenRouter] Network error "
+                    f"for {model}: {exc}. "
+                    f"Retrying in {wait_time}s "
+                    f"(attempt {attempt + 1}/"
+                    f"{max_retries})"
+                )
 
                 time.sleep(wait_time)
-
                 continue
 
-            raise RuntimeError(last_error)
+            raise RuntimeError(last_error) from exc
 
     raise RuntimeError(
         last_error or

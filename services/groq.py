@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import requests
@@ -15,6 +16,35 @@ MAX_RETRY_WAIT = 60
 # Delay between successful Groq calls.
 # Helps prevent bursts when several agents run sequentially.
 POST_REQUEST_DELAY = 2
+
+
+def _get_api_key():
+    """
+    Retrieve the Groq API key.
+
+    Priority:
+    1. Environment variable - used by cloud/backend deployments
+    2. Streamlit secrets - used by Streamlit Cloud/local Streamlit
+    """
+
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if api_key:
+        return api_key
+
+    try:
+        api_key = st.secrets["GROQ_API_KEY"]
+    except Exception:
+        api_key = None
+
+    if not api_key:
+        raise RuntimeError(
+            "GROQ_API_KEY is not configured. "
+            "Set it as an environment variable or "
+            "in Streamlit secrets."
+        )
+
+    return api_key
 
 
 def _get_retry_delay(response, attempt):
@@ -89,7 +119,7 @@ def call_groq(
     services.model_router.call_model().
     """
 
-    api_key = st.secrets["GROQ_API_KEY"]
+    api_key = _get_api_key()
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -228,7 +258,7 @@ def call_groq(
                 raise RuntimeError(
                     f"Groq returned invalid JSON for "
                     f"model '{model}': {exc}"
-                )
+                ) from exc
 
             if "choices" not in data:
 
@@ -257,9 +287,11 @@ def call_groq(
                     f"Groq returned no message content "
                     f"for model '{model}': {data}"
                 )
+
             # Small delay before the next agent/request.
             # This reduces burst traffic in multi-agent workflows.
             time.sleep(POST_REQUEST_DELAY)
+
             return content
 
         # -----------------------------------------------------
@@ -320,8 +352,8 @@ def call_groq(
 
             raise RuntimeError(
                 f"Groq network error after "
-                f"{MAX_RETRIES} retries for model "
-                f"'{model}': {exc}"
+                f"{MAX_RETRIES} retries for "
+                f"model '{model}': {exc}"
             ) from exc
 
     # Safety fallback

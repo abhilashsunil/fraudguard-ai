@@ -20,7 +20,10 @@ from evaluation.evaluator import (
 
 # n8n production webhook used by the Streamlit application.
 # The n8n workflow must be Active for this endpoint to respond.
-N8N_WEBHOOK_URL = "http://localhost:5678/webhook/fraud-investigation"
+N8N_WEBHOOK_URL = st.secrets.get(
+    "N8N_WEBHOOK_URL",
+    "http://localhost:5678/webhook/fraud-investigation"
+)
 
 
 def run_n8n_workflow(payload):

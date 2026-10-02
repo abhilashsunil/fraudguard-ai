@@ -12,6 +12,7 @@ through http://host.docker.internal:8000.
 """
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -26,7 +27,7 @@ from core.policy_engine import calculate_risk
 from core.routing_engine import determine_route
 
 HOST = "0.0.0.0"
-PORT = 8000
+PORT = int(os.getenv("PORT", "8000"))
 DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
 
