@@ -330,11 +330,11 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(
-        "FraudGuard AI n8n Integration API listening on "
-        "http://0.0.0.0:8000"
+        f"FraudGuard AI n8n Integration API listening on "
+        f"http://{HOST}:{PORT}"
     )
     print(
-        "Health check: http://localhost:8000/health"
+        f"Health check: http://localhost:{PORT}/health"
     )
 
     ThreadingHTTPServer(
