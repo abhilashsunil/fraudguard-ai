@@ -1,0 +1,4 @@
+case_id,transaction_id,case_type,ground_truth,expected_action
+TC001,T1001,Normal,LOW,AUTO_CLOSE
+TC002,T1004,Ambiguous,MEDIUM,HUMAN_REVIEW
+TC003,T1003,High Risk,HIGH,ESCALATE

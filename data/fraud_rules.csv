@@ -1,0 +1,6 @@
+rule_id,rule_name,risk_points
+R001,Transaction exceeds 3x customer average,25
+R002,New device detected,20
+R003,Unusual location,40
+R004,Unusual transaction time,10
+R005,Previous fraud alert,25

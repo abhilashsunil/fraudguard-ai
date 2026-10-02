@@ -1,0 +1,7 @@
+device_id,customer_id,device_type,trusted,usual_location
+D1001,C1001,Android,True,Bengaluru
+D1002,C1002,Laptop,True,Mumbai
+D1003,C1003,Android,True,Delhi
+D1004,C1004,iPhone,True,Chennai
+D1005,C1005,Android,True,Pune
+D9999,C1003,Android,False,Unknown

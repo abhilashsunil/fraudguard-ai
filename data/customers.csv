@@ -1,0 +1,6 @@
+customer_id,customer_name,home_city,avg_transaction,monthly_txn_count,usual_channel,usual_device_count
+C1001,Customer A,Bengaluru,6500,18,Mobile,2
+C1002,Customer B,Mumbai,12500,25,Internet Banking,2
+C1003,Customer C,Delhi,4500,12,Mobile,1
+C1004,Customer D,Chennai,22000,30,Mobile,3
+C1005,Customer E,Pune,8000,20,Mobile,2

@@ -1,0 +1,6 @@
+transaction_id,customer_id,timestamp,amount,merchant,merchant_category,location,device_id,channel
+T1001,C1001,2026-09-20 19:30:00,4500,Amazon,Online Retail,Bengaluru,D1001,Mobile
+T1002,C1002,2026-09-20 20:15:00,11000,Flipkart,Online Retail,Mumbai,D1002,Internet Banking
+T1003,C1003,2026-09-20 02:13:00,85000,International Electronics,Electronics,Mumbai,D9999,Mobile
+T1004,C1004,2026-09-20 18:30:00,25000,Electronics Store,Electronics,Hyderabad,D1004,Mobile
+T1005,C1005,2026-09-20 19:10:00,7000,Amazon,Online Retail,Pune,D1005,Mobile
