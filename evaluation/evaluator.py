@@ -20,6 +20,11 @@ MODELS = {
         "model": "openai/gpt-oss-120b"
     },
 
+    "GPT-OSS 20B": {
+        "provider": "groq",
+        "model": "openai/gpt-oss-20b"
+    },
+
     "Qwen 3.8 27B": {
         "provider": "groq",
         "model": "qwen/qwen3.8-27b"
